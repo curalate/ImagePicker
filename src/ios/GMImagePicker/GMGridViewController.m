@@ -469,69 +469,81 @@ NSString * const GMGridViewCellIdentifier = @"GMGridViewCellIdentifier";
         }];
         
         
-            
-        [ self.imageManager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:ph_options resultHandler:^(UIImage *result, NSDictionary *info) {
-            
-            //dispatch_async(dispatch_get_main_queue(), ^{
-            
-            GMGridViewCell *cell = (GMGridViewCell *)[collectionView cellForItemAtIndexPath:indexPath];
-            
-            if ( cell ) {
-                [cell hide_progress];
-                [cell show_fetching];
-            }
-            
-            fetch_item.be_progressed = false;
-            fetch_item.be_finished = true;
-            
-            //asset.image_fullsize = result;
-            
-            NSString * filePath;
-            do {
-                filePath = [NSString stringWithFormat:@"%@/%@%03d.%@", docsPath, CDV_PHOTO_PREFIX, docCount++, @"jpg"];
-            } while ([fileMgr fileExistsAtPath:filePath]);
-            
-            fetch_item.be_saving_img = true;
-            
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        if (asset.mediaType == PHAssetMediaTypeImage) {
+            [ self.imageManager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:ph_options resultHandler:^(UIImage *result, NSDictionary *info) {
                 
+                GMGridViewCell *cell = (GMGridViewCell *)[collectionView cellForItemAtIndexPath:indexPath];
                 
-                // @BVL: Added orientation-fix to correctly display the returned result
-                
-//              if ( ![ UIImageJPEGRepresentation(result, 1.0f ) writeToFile:filePath atomically:YES ] ) {
-//                  return;
-//              }
-                
-                NSLog(@"original orientation: %ld",(UIImageOrientation)result.imageOrientation);
-                
-                UIImage *imageToDisplay = result.fixOrientation; //  UIImage+fixOrientation extension
-                
-          		NSLog(@"corrected orientation: %ld",(UIImageOrientation)imageToDisplay.imageOrientation);
-
-                if ( ![ UIImageJPEGRepresentation(imageToDisplay, 1.0f ) writeToFile:filePath atomically:YES ] ) {
-                    return;
+                if (cell) {
+                    [cell hide_progress];
+                    [cell show_fetching];
                 }
                 
-                fetch_item.image_fullsize = filePath;
-                fetch_item.be_saving_img = false;
+                fetch_item.be_progressed = false;
+                fetch_item.be_finished = true;
                 
-                dispatch_async(dispatch_get_main_queue(), ^{
+                
+                NSString *filePath;
+                do {
+                    filePath = [NSString stringWithFormat:@"%@/%@%03d.%@", docsPath, CDV_PHOTO_PREFIX, docCount++, @"jpg"];
+                } while ([fileMgr fileExistsAtPath:filePath]);
+                
+                fetch_item.be_saving_img = true;
+                
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                     
-                    GMGridViewCell *cell = (GMGridViewCell *)[collectionView cellForItemAtIndexPath:indexPath];
+                    NSLog(@"original orientation: %ld",(UIImageOrientation)result.imageOrientation);
                     
-                    if ( cell ) {
-                        [cell hide_fetching];
-                    }
+                    UIImage *imageToDisplay = result.fixOrientation; //  UIImage+fixOrientation extension
+                    
+                    NSLog(@"corrected orientation: %ld",(UIImageOrientation)imageToDisplay.imageOrientation);
 
-                    //Your main thread code goes in here
-                    [ collectionView selectItemAtIndexPath:indexPath animated:NO scrollPosition:UICollectionViewScrollPositionNone ];
-                    [ self collectionView:collectionView didSelectItemAtIndexPath:indexPath ];
+                    if ( ![ UIImageJPEGRepresentation(imageToDisplay, 1.0f) writeToFile:filePath atomically:YES ] ) {
+                        return;
+                    }
+                    
+                    fetch_item.image_fullsize = filePath;
+                    fetch_item.be_saving_img = false;
+                    
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        
+                        GMGridViewCell *cell = (GMGridViewCell *)[collectionView cellForItemAtIndexPath:indexPath];
+                        
+                        if (cell) {
+                            [cell hide_fetching];
+                        }
+
+                        // Your main thread code goes in here
+                        [ collectionView selectItemAtIndexPath:indexPath animated:NO scrollPosition:UICollectionViewScrollPositionNone ];
+                        [ self collectionView:collectionView didSelectItemAtIndexPath:indexPath ];
+                    });
+                    
                 });
+            }];
+        } else if (asset.mediaType == PHAssetMediaTypeVideo) {
+            [self.imageManager requestAVAssetForVideo:asset options:nil resultHandler:^(AVAsset *asset, AVAudioMix *audioMix, NSDictionary *info) {
+                GMGridViewCell *cell = (GMGridViewCell *)[collectionView cellForItemAtIndexPath:indexPath];
                 
-            });
-            //});
-            
-        }];
+                if (cell) {
+                    [cell hide_progress];
+                    [cell show_fetching];
+                }
+                
+                fetch_item.be_progressed = false;
+                fetch_item.be_finished = true;
+                
+                AVURLAsset *urlAsset = (AVURLAsset*)asset;
+                NSString *srcPath = [urlAsset.URL absoluteString];
+                NSString *videoExtension = [srcPath substringFromIndex:[srcPath length] - 3];
+                NSString *destPath= [NSString stringWithFormat:@"%@/%@%03d.%@", docsPath, CDV_VIDEO_PREFIX, docCount++, videoExtension];
+                NSURL *destUrl = [NSURL fileURLWithPath:[destPath stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
+                
+                if ( [fileMgr isReadableFileAtPath:[urlAsset.URL path]] ) {
+                    [fileMgr copyItemAtURL:urlAsset.URL toURL:destUrl error:nil];
+                    fetch_item.image_fullsize = destPath;
+                }
+            }];
+        }
         
         
         return NO;
