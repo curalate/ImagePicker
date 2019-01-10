@@ -1,0 +1,29 @@
+{
+  "version": "2.2.2",
+  "name": "mobile-image-picker",
+  "cordova_name": "ImagePicker",
+  "description": "",
+  "license": "MIT",
+  "issue": "",
+  "keywords": [],
+  "platforms": [
+    "android",
+    "ios"
+  ],
+  "cordova": {
+    "id": "mobile-image-picker",
+    "platforms": [
+      "ios",
+      "android",
+      "wp8"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/curalate/mobile-image-picker.git"
+  },
+  "engines": {
+    "name": "cordova",
+    "version": ">=3.5.0"
+  }
+}
